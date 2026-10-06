@@ -28,9 +28,23 @@ if (!fs.existsSync(bronMap) || !fs.statSync(bronMap).isDirectory()) {
   process.exit(1);
 }
 
+/** Vergelijkt bestandsnamen los van hoofdletters, spaties/underscores, voorvoegsels ("1221308f-") en kopie-nummers (" (1)"). */
+const sleutel = (bestand) =>
+  bestand
+    .toLowerCase()
+    .replace(/\.csv$/, '')
+    .replace(/\s*\(\d+\)$/, '')
+    .replace(/[\s_-]+/g, '');
+
 function vind(naam) {
-  const f = fs.readdirSync(bronMap).find((x) => x === naam || x.endsWith(`-${naam}`));
-  if (!f) throw new Error(`Bronbestand ${naam} niet gevonden in ${bronMap}`);
+  const gezocht = sleutel(naam);
+  const csvs = fs.readdirSync(bronMap).filter((x) => /\.csv$/i.test(x));
+  const f = csvs.find((x) => sleutel(x) === gezocht) ?? csvs.find((x) => sleutel(x).endsWith(gezocht));
+  if (!f) {
+    console.error(`Bronbestand ${naam} niet gevonden in ${bronMap}.`);
+    console.error(csvs.length ? `Gevonden CSV-bestanden:\n  ${csvs.join('\n  ')}` : 'Er staan geen CSV-bestanden in deze map.');
+    process.exit(1);
+  }
   return path.join(bronMap, f);
 }
 
