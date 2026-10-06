@@ -13,6 +13,38 @@ export interface Inzending {
 }
 
 const TYPEN_MS = 450;
+const MARKEER_MS = 2500;
+
+/**
+ * Brengt velden die de assistent net heeft toegevoegd of ingevuld in beeld en laat ze kort oplichten.
+ * Scrollt alleen als het eerste gewijzigde veld niet (helemaal) zichtbaar is, en alleen in de brede weergave:
+ * op smalle schermen staat de chat boven het formulier en zou scrollen de chat uit beeld halen.
+ */
+function toonWijzigingen(ids: string[]) {
+  const elementen = ids
+    .map((id) => document.querySelector<HTMLElement>(`[data-veld="${CSS.escape(id)}"]`))
+    .filter((el): el is HTMLElement => el !== null);
+  if (elementen.length === 0) return;
+
+  for (const el of elementen) {
+    el.classList.remove('mo-veld--gewijzigd');
+    void el.offsetWidth; // herstart de animatie als het veld opnieuw wijzigt
+    el.classList.add('mo-veld--gewijzigd');
+    window.setTimeout(() => el.classList.remove('mo-veld--gewijzigd'), MARKEER_MS);
+  }
+
+  // Is het eerste veld ook het eerste van een (nieuw) blok, scroll dan naar de bloktitel.
+  const sectie = elementen[0].closest<HTMLElement>('.mo-sectie');
+  const doel = sectie?.querySelector('[data-veld]') === elementen[0] ? sectie : elementen[0];
+
+  // Scroll ook als het doel in het onderste kwart staat: de rest van het blok valt dan onder de vouw.
+  const eerste = doel.getBoundingClientRect();
+  const goedInBeeld = eerste.top >= 0 && eerste.bottom <= window.innerHeight * 0.75;
+  if (!goedInBeeld && window.matchMedia('(min-width: 901px)').matches) {
+    const rustig = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    doel.scrollIntoView({ behavior: rustig ? 'auto' : 'smooth', block: 'start' });
+  }
+}
 
 export function Proces({ data, onVerstuurd }: { data: Datasets; onVerstuurd: (i: Inzending) => void }) {
   const volgnummer = useRef(0);
@@ -80,6 +112,15 @@ export function Proces({ data, onVerstuurd }: { data: Datasets; onVerstuurd: (i:
 
   // Registratiegegevens vullen het formulier, maar wat de gebruiker zelf invult gaat voor.
   const waarden = useMemo(() => ({ ...vooringevuld, ...invoer }), [vooringevuld, invoer]);
+
+  // Na elk antwoord in de chat: welke velden zijn nieuw, of hebben een andere waarde uit de registraties gekregen?
+  const vorigeVooringevuld = useRef<Record<string, string>>({});
+  useEffect(() => {
+    const vorige = vorigeVooringevuld.current;
+    vorigeVooringevuld.current = vooringevuld;
+    const gewijzigd = zichtbareVelden.map((v) => v.id).filter((id) => !(id in vorige) || vorige[id] !== vooringevuld[id]);
+    if (gewijzigd.length > 0) requestAnimationFrame(() => toonWijzigingen(gewijzigd));
+  }, [vooringevuld, zichtbareVelden]);
 
   const onWijzig = (id: string, w: string) => {
     setInvoer((o) => ({ ...o, [id]: w }));

@@ -36,7 +36,7 @@ function Veld({ v, waarde, alleenLezen, fout, onWijzig }: { v: VeldDefinitie; wa
 
   if (v.type === 'radio' && !alleenLezen) {
     return (
-      <div className={`utrecht-form-fieldset utrecht-form-fieldset--distanced${fout ? ' utrecht-form-fieldset--invalid' : ''}`}>
+      <div className={`utrecht-form-fieldset utrecht-form-fieldset--distanced${fout ? ' utrecht-form-fieldset--invalid' : ''}`} data-veld={v.id}>
         <fieldset className="utrecht-form-fieldset__fieldset utrecht-form-fieldset--html-fieldset" aria-describedby={describedBy} aria-invalid={fout ? true : undefined}>
           <legend className="utrecht-form-fieldset__legend utrecht-form-fieldset__legend--html-legend">{label}</legend>
           {v.uitleg && (
@@ -75,7 +75,7 @@ function Veld({ v, waarde, alleenLezen, fout, onWijzig }: { v: VeldDefinitie; wa
 
   const inputType = alleenLezen ? 'text' : v.type === 'date' ? 'date' : v.type === 'tel' ? 'tel' : 'text';
   return (
-    <div className={`utrecht-form-field utrecht-form-field--text utrecht-form-field--distanced${fout ? ' utrecht-form-field--invalid' : ''}`}>
+    <div className={`utrecht-form-field utrecht-form-field--text utrecht-form-field--distanced${fout ? ' utrecht-form-field--invalid' : ''}`} data-veld={v.id}>
       <div className="utrecht-form-field__label">
         <label className="utrecht-form-label" htmlFor={id}>
           {label}

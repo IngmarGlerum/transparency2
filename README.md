@@ -11,7 +11,7 @@ vestigingsadres op het woonadres staat. Het vestigingsadres verhuist mee.
 
 ```bash
 npm install
-npm run data -- <map-met-bronbestanden>   # maakt public/data/*.csv uit de ruwe exports
+npm run data -- <map-met-bronbestanden>   # alleen nodig bij nieuwe exports
 npm run dev                                # http://localhost:5173
 npm run build                              # productiebuild in dist/
 ```
@@ -19,14 +19,14 @@ npm run build                              # productiebuild in dist/
 ## Schermen
 
 1. **Home** (`#/`): header "Welkom op Mijn Overheid" met de knop **Start een proces**.
-2. **Proces** (`#/proces`): links het formulier dat stap voor stap wordt samengesteld, rechts de chatbot.
-3. **Bevestiging** (`#/bevestiging`): overzicht per organisatie en wat er daarna gebeurt.
+2. **Proces** (`#/proces`): links het formulier dat stap voor stap wordt samengesteld, rechts de chatbot. Velden die de chatbot toevoegt of invult, lichten kort op en worden (op brede schermen) in beeld gescrold.
+3. **Bevestiging** (`#/bevestiging`): overzicht per organisatie en wat er daarna gebeurt, te downloaden als PDF.
 
 ## Data
 
 ### Bronbestanden
 
-De ruwe exports staan **niet** in de repository (ze bevatten BSN's en namen). Zet ze in een eigen map (bijv. `data/bron/`, staat in `.gitignore`) en draai `npm run data -- data/bron`.
+De ruwe exports staan **niet** in de repository; de daaruit gemaakte bestanden in `public/data/` wel, zodat de app direct werkt na het klonen. Nieuwe exports? Zet ze in een map naar keuze (bijv. `data/bron/`, staat in `.gitignore`) en draai `npm run data -- <map>`.
 
 | Bestand | Registratie | Gebruik |
 |---|---|---|
@@ -58,7 +58,7 @@ Bevindingen over de testdata:
 | `kadaster_eigendom.csv` | bsn → nummeraanduiding (objecten in eigendom) |
 | `kvk_vestigingen.csv` | actieve ondernemingen met nummeraanduiding van het bezoekadres |
 | `demo_personen.csv` | testpersonen voor de snelknoppen in de chat |
-| `formulier_velden.csv` | veldencatalogus (wel in git) |
+| `formulier_velden.csv` | veldencatalogus |
 
 ### Veldencatalogus (`formulier_velden.csv`)
 
