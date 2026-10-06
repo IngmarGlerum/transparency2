@@ -5,7 +5,7 @@
  * Gebruik:  node scripts/bereid-data-voor.mjs <map-met-bronbestanden> [uitvoermap]
  *
  * Verwachte bronbestanden (een voorvoegsel zoals "1221308f-" in de naam mag):
- *   BRP_Alle_PLen_1.csv                     persoonslijsten (cat. 01, 05, 08, 09)
+ *   BRP_Alle_PLen.csv (of _1, _2 ...)      persoonslijsten (cat. 01, 05, 08, 09)
  *   BRP_Pl_data_samengevat.csv              gemeentenaam per persoonslijst
  *   BSN_nummeraanduidingen.csv              bsn -> BAG-nummeraanduiding (woonadres = BRP, objectadres = Kadaster)
  *   DimBezoekadressenVestigingenActueel.csv KVK-bezoekadressen met BAG-nummeraanduiding
@@ -28,13 +28,17 @@ if (!fs.existsSync(bronMap) || !fs.statSync(bronMap).isDirectory()) {
   process.exit(1);
 }
 
-/** Vergelijkt bestandsnamen los van hoofdletters, spaties/underscores, voorvoegsels ("1221308f-") en kopie-nummers (" (1)"). */
+/**
+ * Vergelijkt bestandsnamen los van hoofdletters, spaties/underscores, voorvoegsels ("1221308f-"),
+ * kopie-nummers (" (1)") en een volgnummer aan het eind ("_1").
+ */
 const sleutel = (bestand) =>
   bestand
     .toLowerCase()
     .replace(/\.csv$/, '')
     .replace(/\s*\(\d+\)$/, '')
-    .replace(/[\s_-]+/g, '');
+    .replace(/[\s_-]+/g, '')
+    .replace(/\d+$/, '');
 
 function vind(naam) {
   const gezocht = sleutel(naam);
@@ -72,7 +76,7 @@ const K = '09_Kind_';
 
 const samengevat = new Map(lees('BRP_Pl_data_samengevat.csv').map((r) => [r.pl, r]));
 const plen = new Map(); // pl -> { persoon, verblijf, partners[], kinderen[] }
-for (const r of lees('BRP_Alle_PLen_1.csv')) {
+for (const r of lees('BRP_Alle_PLen.csv')) {
   const pl = plen.get(r.pl) ?? { partners: [], kinderen: [] };
   plen.set(r.pl, pl);
   // Versie V0001 is de actuele persoonslijst; oudere versies (V0002, ...) zijn historie.
