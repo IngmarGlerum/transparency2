@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "data": "node scripts/bereid-data-voor.mjs"
   },
   "dependencies": {
     "@rijkshuisstijl-community/components-css": "^18.0.2",

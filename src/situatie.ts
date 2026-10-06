@@ -1,19 +1,17 @@
-import {
-  brpAdres,
-  kadasterAdres,
-  kvkBezoekadres,
-  volledigeNaam,
-  type Row,
-  type VeldDefinitie,
-} from './data';
+import { adresTekst, huisnummerVolledig, volledigeNaam, type Row, type VeldDefinitie } from './data';
 
 /** Wat de chatbot over de situatie en het doel van de gebruiker heeft vastgesteld. */
 export interface Situatie {
   persoon?: Row;
   persoonBevestigd: boolean;
-  nieuwAdres?: Row; // Kadaster-object van het nieuwe adres
-  kadasterOud?: Row; // Kadaster-object van het huidige adres
+  /** Actuele verblijfplaats volgens de BRP */
+  huidigAdres?: Row;
+  /** Nieuw adres (BAG-nummeraanduiding met adresgegevens) */
+  nieuwAdres?: Row;
+  /** KVK-vestiging op het woonadres waarvan de gebruiker bevestigt dat die van hem/haar is */
   onderneming?: Row;
+  /** Gezinsleden die meeverhuizen (namen) */
+  meeverhuizers?: string;
   /** Situatievlaggen; deze worden gebruikt in de kolom `voorwaarde` van formulier_velden.csv */
   vlaggen: Record<string, boolean>;
   verhuisdatum?: string;
@@ -37,24 +35,31 @@ export function voldoetAan(voorwaarde: string, s: Situatie): boolean {
   );
 }
 
+const metAdres = (a: Row | undefined): Row =>
+  a ? { ...a, adres: adresTekst(a), huisnummer_volledig: huisnummerVolledig(a) } : {};
+
 /** Bouwt de gegevensbronnen waaruit `prefill`-paden (bijv. `onderneming.handelsnaam`) worden gelezen. */
 function prefillContext(s: Situatie): Record<string, Row> {
   const p = s.persoon ?? {};
-  const n = s.nieuwAdres ?? {};
-  const k = s.onderneming ?? {};
+  const naam = s.persoon ? volledigeNaam(p) : '';
   return {
-    persoon: { ...p, volledige_naam: s.persoon ? volledigeNaam(p) : '', adres: s.persoon ? brpAdres(p) : '' },
-    nieuw: {
-      ...n,
-      adres: s.nieuwAdres ? kadasterAdres(n) : '',
-      huisnummer_volledig: [n.huisnummer, n.toevoeging].filter(Boolean).join(' '),
+    persoon: { ...p, volledige_naam: naam, adres: adresTekst(s.huidigAdres) },
+    huidig: metAdres(s.huidigAdres),
+    nieuw: metAdres(s.nieuwAdres),
+    kadaster_nieuw: s.nieuwAdres
+      ? {
+          nummeraanduiding: s.nieuwAdres.nummeraanduiding,
+          gebruiksdoel: s.nieuwAdres.gebruiksdoel,
+          eigenaar: s.vlaggen.nieuw_eigendom_geregistreerd ? naam : '',
+        }
+      : {},
+    kadaster_oud: {
+      eigendom: s.vlaggen.oud_huur ? 'Geen eigendom geregistreerd op je naam' : s.vlaggen.oud_koop ? `Eigendom van ${naam}` : '',
     },
-    kadaster_nieuw: n,
-    kadaster_oud: s.kadasterOud ?? {},
-    onderneming: { ...k, bezoekadres: s.onderneming ? kvkBezoekadres(k) : '' },
+    onderneming: { ...(s.onderneming ?? {}), bezoekadres: s.onderneming ? adresTekst(s.huidigAdres) : '' },
     situatie: {
       verhuisdatum: s.verhuisdatum ?? '',
-      meeverhuizers: '',
+      meeverhuizers: s.meeverhuizers ?? '',
       postadres_gelijk: s.vlaggen.onderneming_verhuist_mee ? 'Ja' : '',
     },
   };

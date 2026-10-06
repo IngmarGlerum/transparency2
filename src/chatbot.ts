@@ -1,14 +1,13 @@
 import {
-  brpAdres,
+  adresTekst,
   datumNl,
+  eigendomVan,
   geldigBsn,
-  isZelfdeAlsWoonadres,
-  kadasterAdres,
-  kadasterVanPersoon,
-  kvkBezoekadres,
-  kvkOpWoonadres,
+  isEigenaar,
+  mooiePostcode,
+  huisnummerVolledig,
   volledigeNaam,
-  zoekKadaster,
+  zoekAdres,
   type Datasets,
   type Row,
 } from './data';
@@ -25,10 +24,11 @@ export type StapId =
   | 'bevestigPersoon'
   | 'nieuwAdres'
   | 'bevestigAdres'
+  | 'meeverhuizers'
   | 'woningNieuw'
   | 'woningOud'
-  | 'woningOudVraag'
   | 'onderneming'
+  | 'ondernemingMee'
   | 'verhuisdatum'
   | 'klaar';
 
@@ -48,23 +48,30 @@ interface Stap {
   verwerk(invoer: string, s: Situatie, d: Datasets): Verwerking;
 }
 
-const JA = /^(ja|jazeker|klopt|correct|juist|yes|j|zeker|dat klopt|ja,? (dat )?klopt)\b/i;
+const JA = /^(ja|jazeker|klopt|correct|juist|yes|j|zeker|dat klopt)\b/i;
 const NEE = /^(nee|neen|no|n|klopt niet|niet)\b/i;
 const jaNee = (t: string) => (JA.test(t.trim()) ? 'ja' : NEE.test(t.trim()) ? 'nee' : undefined);
 const JA_NEE = ['Ja, dat klopt', 'Nee'];
+const GEEN = 'Geen van deze';
 
 const metVlag = (s: Situatie, vlaggen: Record<string, boolean>): Situatie => ({
   ...s,
   vlaggen: { ...s.vlaggen, ...vlaggen },
 });
 
-function parseAdres(t: string): { postcode: string; nr: string; toev?: string } | undefined {
+const kortAdres = (a: Row) => `${mooiePostcode(a.postcode)} ${huisnummerVolledig(a)}`;
+const gezinsleden = (p: Row) => (p.gezinsleden_op_adres ? p.gezinsleden_op_adres.split('|') : []);
+const zonderBsn = (lid: string) => lid.replace(/\s*\(\d+\)$/, '');
+const vestigingenOpWoonadres = (s: Situatie, d: Datasets) => d.vestigingen.get(s.persoon!.nummeraanduiding) ?? [];
+const naamGelijk = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+function parseAdres(t: string): { postcode: string; nr: string; rest: string } | undefined {
   const pc = /(\d{4})\s?([a-z]{2})\b/i.exec(t);
   if (!pc) return undefined;
   const rest = (t.slice(0, pc.index) + ' ' + t.slice(pc.index + pc[0].length)).trim();
-  const nr = /(\d+)\s*[-\s]?\s*([a-z]{1,4}\b)?/i.exec(rest);
+  const nr = /(\d+)\s*-?\s*([a-z0-9]{0,4}(?:\s+[a-z0-9]{1,4})?)\s*$/i.exec(rest) ?? /(\d+)/.exec(rest);
   if (!nr) return undefined;
-  return { postcode: pc[1] + pc[2], nr: nr[1], toev: nr[2] };
+  return { postcode: pc[1] + pc[2], nr: nr[1], rest: nr[2] ?? '' };
 }
 
 function parseDatum(t: string): string | undefined {
@@ -90,7 +97,7 @@ export const STAPPEN: Record<StapId, Stap> = {
     vraag: () => ({
       berichten: [
         'Hallo! Ik ben de digitale assistent van Mijn Overheid.',
-        'Ik stel je een paar vragen om je situatie te begrijpen. Op basis daarvan stel ik links één formulier voor je samen, met gegevens die de overheid al van je heeft.',
+        'Ik stel je een paar vragen om je situatie te begrijpen. Op basis daarvan stel ik één formulier voor je samen, met gegevens die de overheid al van je heeft.',
         'Waarmee kan ik je helpen?',
       ],
       antwoorden: ['Ik ga verhuizen', 'Iets anders'],
@@ -98,27 +105,32 @@ export const STAPPEN: Record<StapId, Stap> = {
     verwerk: (t) =>
       /verhui|nieuw(e)? (adres|woning|huis)|adres ?wijzig|ander adres/i.test(t)
         ? { volgende: 'identificatie', zeg: ['Goed, dan help ik je met je verhuizing.'] }
-        : {
-            zeg: [
-              'In dit prototype kan ik je alleen helpen met het doorgeven van een verhuizing. Ga je verhuizen?',
-            ],
-          },
+        : { zeg: ['In dit prototype kan ik je alleen helpen met het doorgeven van een verhuizing. Ga je verhuizen?'] },
   },
 
   identificatie: {
     vraag: (_s, d) => ({
       berichten: [
-        'Normaal log je eerst in met DigiD. In dit prototype kies je een testpersoon, of typ je een burgerservicenummer (BSN).',
+        'Normaal log je eerst in met DigiD. In dit prototype kies je een testpersoon, of typ je een burgerservicenummer (BSN) uit de BRP-testset.',
       ],
-      antwoorden: d.brp.map((p) => `${volledigeNaam(p)} (${p.bsn})`),
+      antwoorden: d.demo
+        .map((x) => d.personen.get(x.bsn))
+        .filter((p): p is Row => Boolean(p))
+        .map((p) => `${volledigeNaam(p)} (${p.bsn})`),
     }),
     verwerk: (t, s, d) => {
       const bsn = /\d{9}/.exec(t.replace(/[\s.]/g, ''))?.[0];
       if (!bsn) return { zeg: ['Ik herken geen BSN in je antwoord. Een BSN bestaat uit 9 cijfers.'] };
-      if (!geldigBsn(bsn)) return { zeg: [`${bsn} is geen geldig BSN (de elfproef klopt niet). Probeer het opnieuw.`] };
-      const persoon = d.brp.find((p) => p.bsn === bsn);
-      if (!persoon) return { zeg: ['Ik kan dit BSN niet vinden in de Basisregistratie Personen. Kies een testpersoon.'] };
-      return { situatie: { ...s, persoon }, volgende: 'bevestigPersoon' };
+      const persoon = d.personen.get(bsn);
+      if (!persoon)
+        return {
+          zeg: [
+            geldigBsn(bsn)
+              ? 'Ik kan dit BSN niet vinden in de Basisregistratie Personen. Kies een testpersoon.'
+              : `${bsn} is geen geldig BSN (de elfproef klopt niet). Probeer het opnieuw.`,
+          ],
+        };
+      return { situatie: { ...s, persoon, huidigAdres: d.adressen.get(persoon.nummeraanduiding) }, volgende: 'bevestigPersoon' };
     },
   },
 
@@ -127,23 +139,23 @@ export const STAPPEN: Record<StapId, Stap> = {
       const p = s.persoon!;
       return {
         berichten: [
-          `Ik heb je gevonden in de Basisregistratie Personen (RvIG): **${volledigeNaam(p)}**, geboren op ${datumNl(p.geboortedatum)}.`,
-          `Je staat ingeschreven op **${brpAdres(p)}**. Klopt dat?`,
+          `Ik heb je gevonden in de Basisregistratie Personen (RvIG): **${volledigeNaam(p)}**${p.geboortedatum ? `, geboren op ${datumNl(p.geboortedatum)}` : ''}.`,
+          `Je staat ingeschreven op **${adresTekst(s.huidigAdres)}**${p.gemeente ? ` in de gemeente ${p.gemeente}` : ''}. Klopt dat?`,
         ],
         antwoorden: JA_NEE,
       };
     },
-    verwerk: (t, s, d) => {
+    verwerk: (t, s) => {
       const a = jaNee(t);
       if (a === 'ja')
         return {
-          situatie: { ...s, persoonBevestigd: true, kadasterOud: kadasterVanPersoon(d, s.persoon!) },
+          situatie: { ...s, persoonBevestigd: true },
           volgende: 'nieuwAdres',
-          zeg: ['Dank je. Je persoonsgegevens staan nu links in het formulier.'],
+          zeg: ['Dank je. Je persoonsgegevens staan nu in het formulier.'],
         };
       if (a === 'nee')
         return {
-          situatie: { ...s, persoon: undefined },
+          situatie: { ...s, persoon: undefined, huidigAdres: undefined },
           volgende: 'identificatie',
           zeg: ['Kloppen je gegevens in de BRP niet? Neem dan contact op met je gemeente. Laten we eerst controleren of je de juiste persoon hebt gekozen.'],
         };
@@ -152,90 +164,122 @@ export const STAPPEN: Record<StapId, Stap> = {
   },
 
   nieuwAdres: {
-    vraag: (s, d) => ({
-      berichten: ['Wat wordt je nieuwe adres? Typ je postcode en huisnummer, bijvoorbeeld "3721 AB 8".'],
-      antwoorden: d.kadaster
-        .filter((o) => !isZelfdeAlsWoonadres(o, s.persoon!))
-        .sort((a, b) => Number(b.eigenaar_bsn === s.persoon!.bsn) - Number(a.eigenaar_bsn === s.persoon!.bsn))
-        .slice(0, 3)
-        .map((o) => `${o.postcode.slice(0, 4)} ${o.postcode.slice(4)} ${o.huisnummer}${o.toevoeging ? ' ' + o.toevoeging : ''}`),
-    }),
+    vraag: (s, d) => {
+      const eigen = eigendomVan(d, s.persoon!.bsn)
+        .map((na) => d.adressen.get(na))
+        .filter((a): a is Row => Boolean(a))
+        .sort((a, b) => Number(/woon/.test(b.gebruiksdoel)) - Number(/woon/.test(a.gebruiksdoel)));
+      return {
+        berichten: ['Wat wordt je nieuwe adres? Typ je postcode en huisnummer, bijvoorbeeld "3132 BD 99".'],
+        antwoorden: eigen.slice(0, 3).map(kortAdres),
+      };
+    },
     verwerk: (t, s, d) => {
-      const adres = parseAdres(t);
-      if (!adres) return { zeg: ['Ik herken geen postcode en huisnummer. Typ bijvoorbeeld "3721 AB 8".'] };
-      const obj = zoekKadaster(d, adres.postcode, adres.nr, adres.toev);
-      if (!obj)
-        return { zeg: ['Ik kan dit adres niet vinden in de registraties. Controleer de postcode en het huisnummer.'] };
-      if (isZelfdeAlsWoonadres(obj, s.persoon!))
-        return { zeg: ['Dit is je huidige adres. Wat wordt je nieuwe adres?'] };
-      return { situatie: { ...s, nieuwAdres: obj }, volgende: 'bevestigAdres' };
+      const invoer = parseAdres(t);
+      if (!invoer) return { zeg: ['Ik herken geen postcode en huisnummer. Typ bijvoorbeeld "3132 BD 99".'] };
+      const adres = zoekAdres(d, invoer.postcode, invoer.nr, invoer.rest, s.persoon!.bsn);
+      if (!adres) return { zeg: ['Ik kan dit adres niet vinden in de Basisregistratie Adressen en Gebouwen. Controleer de postcode en het huisnummer.'] };
+      if (adres.nummeraanduiding === s.persoon!.nummeraanduiding) return { zeg: ['Dit is je huidige adres. Wat wordt je nieuwe adres?'] };
+      return { situatie: { ...s, nieuwAdres: adres }, volgende: 'bevestigAdres' };
     },
   },
 
   bevestigAdres: {
     vraag: (s) => ({
-      berichten: [`Je nieuwe adres wordt **${kadasterAdres(s.nieuwAdres!)}**. Klopt dat?`],
+      berichten: [
+        `Je nieuwe adres wordt **${adresTekst(s.nieuwAdres)}**${s.nieuwAdres!.gemeente ? ` (gemeente ${s.nieuwAdres!.gemeente})` : ''}. Klopt dat?`,
+      ],
       antwoorden: JA_NEE,
     }),
     verwerk: (t, s) => {
       const a = jaNee(t);
-      if (a === 'ja') return { situatie: metVlag(s, { verhuizing: true }), volgende: 'woningNieuw' };
+      if (a === 'ja') {
+        const zeg =
+          s.nieuwAdres!.gemeente && s.persoon!.gemeente && s.nieuwAdres!.gemeente !== s.persoon!.gemeente
+            ? [`Je verhuist naar een andere gemeente. We geven je verhuizing door aan de gemeente ${s.nieuwAdres!.gemeente}.`]
+            : [];
+        const gezin = gezinsleden(s.persoon!).length > 0;
+        return {
+          situatie: { ...metVlag(s, { verhuizing: true }), meeverhuizers: gezin ? s.meeverhuizers : 'Alleen ikzelf' },
+          volgende: gezin ? 'meeverhuizers' : 'woningNieuw',
+          zeg,
+        };
+      }
       if (a === 'nee') return { situatie: { ...s, nieuwAdres: undefined }, volgende: 'nieuwAdres' };
       return { zeg: ['Antwoord met ja of nee.'] };
     },
   },
 
-  woningNieuw: {
+  meeverhuizers: {
     vraag: (s) => {
-      const o = s.nieuwAdres!;
-      if (o.eigenaar_bsn === s.persoon!.bsn)
+      const leden = gezinsleden(s.persoon!).map(zonderBsn);
+      return {
+        berichten: [`Volgens de BRP wonen ook **${leden.join(', ')}** op je huidige adres. Verhuizen zij met je mee?`],
+        antwoorden: ['Ja, allemaal', 'Nee, alleen ik'],
+      };
+    },
+    verwerk: (t, s) => {
+      const a = /allemaal/i.test(t) ? 'ja' : /alleen ik/i.test(t) ? 'nee' : jaNee(t);
+      if (!a) return { zeg: ['Antwoord met ja of nee. Verhuizen maar een paar personen mee? Kies "Ja" en pas het daarna aan in het formulier.'] };
+      const meeverhuizers = a === 'ja' ? gezinsleden(s.persoon!).map(zonderBsn).join(', ') : 'Alleen ikzelf';
+      return {
+        situatie: { ...s, meeverhuizers },
+        volgende: 'woningNieuw',
+        zeg: a === 'ja' ? ['Ik geef de verhuizing ook voor hen door.'] : [],
+      };
+    },
+  },
+
+  woningNieuw: {
+    vraag: (s, d) => {
+      const n = s.nieuwAdres!;
+      if (isEigenaar(d, s.persoon!.bsn, n.nummeraanduiding))
         return {
           berichten: [
-            `Volgens het Kadaster ben jij sinds ${datumNl(o.datum_eigendom)} eigenaar van ${o.straat} ${o.huisnummer}. Je nieuwe woning is dus een **koopwoning**. Klopt dat?`,
+            `Volgens het Kadaster sta jij als eigenaar geregistreerd van ${n.straat} ${huisnummerVolledig(n)}${n.gebruiksdoel ? ` (gebruiksdoel: ${n.gebruiksdoel.replace(/,/g, ', ')})` : ''}. Je nieuwe woning is dus een **koopwoning**. Klopt dat?`,
           ],
           antwoorden: JA_NEE,
         };
       return {
-        berichten: [`Volgens het Kadaster is ${o.eigenaar_naam} eigenaar van je nieuwe adres. Ga je deze woning **huren**?`],
+        berichten: ['Volgens het Kadaster sta je niet als eigenaar van je nieuwe adres geregistreerd. Ga je deze woning **huren**?'],
         antwoorden: ['Ja, ik ga huren', 'Nee, ik heb hem gekocht'],
       };
     },
-    verwerk: (t, s) => {
-      const eigenaar = s.nieuwAdres!.eigenaar_bsn === s.persoon!.bsn;
+    verwerk: (t, s, d) => {
+      const eigenaar = isEigenaar(d, s.persoon!.bsn, s.nieuwAdres!.nummeraanduiding);
       const a = jaNee(t) ?? (/koop|gekocht/i.test(t) ? (eigenaar ? 'ja' : 'nee') : /huur/i.test(t) ? (eigenaar ? 'nee' : 'ja') : undefined);
       if (!a) return { zeg: ['Antwoord met ja of nee.'] };
       const koop = eigenaar ? a === 'ja' : a === 'nee';
       const zeg = [];
       if (koop && !eigenaar)
-        zeg.push('Let op: de overdracht staat nog niet ingeschreven in het Kadaster. Je kunt doorgaan; de gegevens worden later gecontroleerd. Vul de koopgegevens zelf in.');
+        zeg.push('Let op: de overdracht staat nog niet ingeschreven in het Kadaster. Je kunt doorgaan; de gegevens worden later gecontroleerd.');
       if (!koop && eigenaar)
         zeg.push('Je staat in het Kadaster als eigenaar geregistreerd. Ik ga uit van een huurwoning, maar controleer dit later bij het Kadaster.');
       zeg.push(koop ? 'Ik heb de gegevens van het Kadaster over je nieuwe woning toegevoegd.' : 'Ik noteer dat je nieuwe woning een huurwoning is.');
-      return { situatie: metVlag(s, { nieuw_koop: koop, nieuw_huur: !koop }), volgende: 'woningOud', zeg };
+      return {
+        situatie: metVlag(s, { nieuw_koop: koop, nieuw_huur: !koop, nieuw_eigendom_geregistreerd: koop && eigenaar }),
+        volgende: 'woningOud',
+        zeg,
+      };
     },
   },
 
   woningOud: {
-    vraag: (s) => {
-      const o = s.kadasterOud;
-      if (!o) return STAPPEN.woningOudVraag.vraag(s, {} as Datasets);
-      if (o.eigenaar_bsn === s.persoon!.bsn)
+    vraag: (s, d) => {
+      if (isEigenaar(d, s.persoon!.bsn, s.persoon!.nummeraanduiding))
         return {
-          berichten: [`Volgens het Kadaster ben je eigenaar van je huidige woning aan de ${o.straat}. Dat is dus een **koopwoning**. Klopt dat?`],
+          berichten: ['Volgens het Kadaster ben je eigenaar van je huidige woning. Dat is dus een **koopwoning**. Klopt dat?'],
           antwoorden: JA_NEE,
         };
       return {
-        berichten: [
-          `Volgens het Kadaster is **${o.eigenaar_naam}** eigenaar van je huidige woning. Je **huurt** je huidige woning dus. Klopt dat?`,
-        ],
+        berichten: ['Volgens het Kadaster sta je niet als eigenaar van je huidige woning geregistreerd. Je **huurt** je huidige woning dus. Klopt dat?'],
         antwoorden: JA_NEE,
       };
     },
     verwerk: (t, s, d) => {
-      if (!s.kadasterOud) return STAPPEN.woningOudVraag.verwerk(t, s, d);
       const a = jaNee(t);
       if (!a) return { zeg: ['Antwoord met ja of nee.'] };
-      const eigenaar = s.kadasterOud.eigenaar_bsn === s.persoon!.bsn;
+      const eigenaar = isEigenaar(d, s.persoon!.bsn, s.persoon!.nummeraanduiding);
       const koop = eigenaar ? a === 'ja' : a === 'nee';
       const zeg = [];
       if (!koop && s.vlaggen.nieuw_koop)
@@ -244,73 +288,82 @@ export const STAPPEN: Record<StapId, Stap> = {
     },
   },
 
-  woningOudVraag: {
-    vraag: () => ({ berichten: ['Is je huidige woning een koopwoning of een huurwoning?'], antwoorden: ['Koopwoning', 'Huurwoning'] }),
-    verwerk: (t, s) => {
-      if (/koop/i.test(t)) return { situatie: metVlag(s, { oud_koop: true, oud_huur: false }), volgende: 'onderneming' };
-      if (/huur/i.test(t)) return { situatie: metVlag(s, { oud_koop: false, oud_huur: true }), volgende: 'onderneming' };
-      return { zeg: ['Kies koopwoning of huurwoning.'] };
-    },
-  },
-
   onderneming: {
     vraag: (s, d) => {
-      const k = d.kvk.find((r) => r.eigenaar_bsn === s.persoon!.bsn);
-      if (!k)
+      const vs = vestigingenOpWoonadres(s, d);
+      if (vs.length === 0)
         return {
-          berichten: ['Ik heb in het Handelsregister van KVK geen onderneming op jouw naam gevonden. Klopt het dat je geen eigen onderneming hebt?'],
+          berichten: ['Ik heb in het Handelsregister van KVK geen actieve onderneming op je woonadres gevonden. Klopt het dat je geen onderneming vanuit huis hebt?'],
           antwoorden: JA_NEE,
         };
-      if (kvkOpWoonadres(k, s.persoon!))
-        return {
-          berichten: [
-            `Volgens het Handelsregister van KVK heb je een ${k.rechtsvorm.toLowerCase()}: **${k.handelsnaam}** (KVK ${k.kvk_nummer}).`,
-            `Het vestigingsadres van je onderneming is hetzelfde als je woonadres. Verhuist je onderneming mee naar **${kadasterAdres(s.nieuwAdres!)}**?`,
-          ],
-          antwoorden: ['Ja, mijn onderneming verhuist mee', 'Nee'],
-        };
+      if (vs.length === 1) {
+        const v = vs[0];
+        const berichten = [
+          `Volgens het Handelsregister van KVK is op je woonadres ingeschreven: **${v.handelsnaam}** (${v.rechtsvorm.toLowerCase()}, KVK ${v.kvk_nummer}), eigenaar: ${v.eigenaar_naam}.`,
+        ];
+        if (!naamGelijk(v.eigenaar_naam, volledigeNaam(s.persoon!)))
+          berichten.push('Let op: de naam van de eigenaar in het Handelsregister wijkt af van jouw naam in de BRP.');
+        berichten.push('Is dit jouw onderneming?');
+        return { berichten, antwoorden: JA_NEE };
+      }
       return {
-        berichten: [
-          `Je hebt een onderneming: **${k.handelsnaam}** (KVK ${k.kvk_nummer}), gevestigd op ${kvkBezoekadres(k)}.`,
-          'Dat is niet je woonadres, dus het vestigingsadres blijft hetzelfde. Klopt dat?',
-        ],
-        antwoorden: JA_NEE,
+        berichten: [`Op je woonadres staan ${vs.length} actieve ondernemingen ingeschreven in het Handelsregister. Welke is van jou?`],
+        antwoorden: [...vs.slice(0, 6).map((v) => `${v.handelsnaam} (KVK ${v.kvk_nummer})`), GEEN],
       };
     },
     verwerk: (t, s, d) => {
-      const k: Row | undefined = d.kvk.find((r) => r.eigenaar_bsn === s.persoon!.bsn);
+      const vs = vestigingenOpWoonadres(s, d);
+      let gekozen: Row | undefined;
+      if (vs.length > 1) {
+        if (t === GEEN || jaNee(t) === 'nee') gekozen = undefined;
+        else {
+          gekozen = vs.find((v) => t.includes(v.kvk_nummer) || t.toLowerCase().includes(v.handelsnaam.toLowerCase()));
+          if (!gekozen) return { zeg: ['Kies een van de ondernemingen, of "Geen van deze".'] };
+        }
+      } else {
+        const a = jaNee(t);
+        if (!a) return { zeg: ['Antwoord met ja of nee.'] };
+        if (vs.length === 0)
+          return {
+            volgende: 'verhuisdatum',
+            zeg: a === 'nee' ? ['Staat je onderneming niet op je woonadres ingeschreven? Dan hoef je het vestigingsadres niet te wijzigen. Twijfel je? Neem contact op met KVK.'] : [],
+          };
+        gekozen = a === 'ja' ? vs[0] : undefined;
+      }
+      if (!gekozen)
+        return {
+          situatie: { ...metVlag(s, { onderneming_verhuist_mee: false }), onderneming: undefined },
+          volgende: 'verhuisdatum',
+          zeg: ['Dan verandert er voor jou niets in het Handelsregister.'],
+        };
+      return { situatie: { ...s, onderneming: gekozen }, volgende: 'ondernemingMee' };
+    },
+  },
+
+  ondernemingMee: {
+    vraag: (s) => ({
+      berichten: [`Het vestigingsadres van **${s.onderneming!.handelsnaam}** is je woonadres. Verhuist je onderneming mee naar **${adresTekst(s.nieuwAdres)}**?`],
+      antwoorden: ['Ja, mijn onderneming verhuist mee', 'Nee'],
+    }),
+    verwerk: (t, s) => {
       const a = jaNee(t);
       if (!a) return { zeg: ['Antwoord met ja of nee.'] };
-      if (!k)
-        return {
-          volgende: 'verhuisdatum',
-          zeg: a === 'nee' ? ['Staat je onderneming niet op jouw naam? Neem dan contact op met KVK. We gaan verder met je verhuizing.'] : [],
-        };
-      const opWoonadres = kvkOpWoonadres(k, s.persoon!);
-      const verhuistMee = opWoonadres ? a === 'ja' : a === 'nee';
-      const zeg = verhuistMee
-        ? ['Ik heb de wijziging van je vestigingsadres bij KVK aan het formulier toegevoegd. Het nieuwe bezoekadres wordt je nieuwe woonadres.']
-        : opWoonadres
-          ? ['Let op: je onderneming mag niet ingeschreven blijven op een adres waar je niet meer woont of werkt. Geef het nieuwe vestigingsadres apart door aan KVK.']
-          : [];
+      const mee = a === 'ja';
       return {
-        situatie: { ...metVlag(s, { onderneming_verhuist_mee: verhuistMee }), onderneming: k },
+        situatie: metVlag(s, { onderneming_verhuist_mee: mee }),
         volgende: 'verhuisdatum',
-        zeg,
+        zeg: mee
+          ? ['Ik heb de wijziging van je vestigingsadres bij KVK aan het formulier toegevoegd. Het nieuwe bezoekadres wordt je nieuwe woonadres.']
+          : ['Let op: je onderneming mag niet ingeschreven blijven op een adres waar je niet meer woont of werkt. Geef het nieuwe vestigingsadres apart door aan KVK.'],
       };
     },
   },
 
   verhuisdatum: {
-    vraag: (s) => {
-      const voorstel = s.nieuwAdres?.datum_eigendom && s.nieuwAdres.datum_eigendom >= isoVandaag()
-        ? s.nieuwAdres.datum_eigendom
-        : plusDagen(isoVandaag(), 14);
-      return {
-        berichten: ['Op welke datum verhuis je? Typ de datum als dd-mm-jjjj.'],
-        antwoorden: [datumNl(voorstel)],
-      };
-    },
+    vraag: () => ({
+      berichten: ['Op welke datum verhuis je? Typ de datum als dd-mm-jjjj.'],
+      antwoorden: [datumNl(plusDagen(isoVandaag(), 14))],
+    }),
     verwerk: (t, s) => {
       const iso = parseDatum(t);
       if (!iso || Number.isNaN(new Date(iso).getTime())) return { zeg: ['Ik herken geen datum. Typ bijvoorbeeld 01-11-2026.'] };
@@ -326,7 +379,7 @@ export const STAPPEN: Record<StapId, Stap> = {
     vraag: (s) => {
       const v = s.vlaggen;
       const doelen = [
-        'je verhuizing doorgeven aan je nieuwe gemeente (BRP, RvIG)',
+        `je verhuizing doorgeven aan ${s.nieuwAdres?.gemeente ? `de gemeente ${s.nieuwAdres.gemeente}` : 'je nieuwe gemeente'} (BRP, RvIG)`,
         v.onderneming_verhuist_mee && `het vestigingsadres van ${s.onderneming?.handelsnaam} wijzigen (KVK)`,
         v.nieuw_koop && 'de gegevens van je koopwoning controleren (Kadaster)',
         v.oud_huur && 'het einde van je huurwoning en eventuele huurtoeslag regelen',
@@ -335,7 +388,7 @@ export const STAPPEN: Record<StapId, Stap> = {
         berichten: [
           `Samengevat: je verhuist op ${datumNl(s.verhuisdatum)} van een ${v.oud_huur ? 'huurwoning' : 'koopwoning'} naar een ${v.nieuw_koop ? 'koopwoning' : 'huurwoning'}${v.onderneming_verhuist_mee ? ', en je onderneming verhuist mee' : ''}.`,
           `Je doel: ${doelen.join('; ')}.`,
-          'Het formulier links is compleet. Controleer de gegevens, vul de open vragen in en verstuur alles in één keer. Heb je nog een vraag? Stel hem hier.',
+          'Het formulier is compleet. Controleer de gegevens, vul de open vragen in en verstuur alles in één keer. Heb je nog een vraag? Stel hem hier.',
         ],
         antwoorden: ['Wat gebeurt er met mijn huurtoeslag?', 'Wat doet KVK met mijn wijziging?'],
       };
@@ -349,7 +402,7 @@ export const STAPPEN: Record<StapId, Stap> = {
         return { zeg: ['De gemeente stelt de WOZ-waarde vast. Als eigenaar ontvang je voortaan de aanslag onroerendezaakbelasting.'] };
       if (/hypotheek|kadaster/i.test(t))
         return { zeg: ['Het Kadaster registreert de eigendom en de hypotheek op basis van de akte van de notaris. Je hoeft dat niet zelf door te geven; controleer alleen of de gegevens kloppen.'] };
-      return { zeg: ['Daar kan ik in dit prototype geen antwoord op geven. Je kunt het formulier links verder invullen.'] };
+      return { zeg: ['Daar kan ik in dit prototype geen antwoord op geven. Je kunt het formulier verder invullen.'] };
     },
   },
 };

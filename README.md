@@ -11,8 +11,9 @@ vestigingsadres op het woonadres staat. Het vestigingsadres verhuist mee.
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
-npm run build    # productiebuild in dist/
+npm run data -- <map-met-bronbestanden>   # maakt public/data/*.csv uit de ruwe exports
+npm run dev                                # http://localhost:5173
+npm run build                              # productiebuild in dist/
 ```
 
 ## Schermen
@@ -21,27 +22,43 @@ npm run build    # productiebuild in dist/
 2. **Proces** (`#/proces`): links het formulier dat stap voor stap wordt samengesteld, rechts de chatbot.
 3. **Bevestiging** (`#/bevestiging`): overzicht per organisatie en wat er daarna gebeurt.
 
-## Testpersonen
+## Data
 
-| Persoon | BSN | Situatie |
+### Bronbestanden
+
+De ruwe exports staan **niet** in de repository (ze bevatten BSN's en namen). Zet ze in een eigen map (bijv. `data/bron/`, staat in `.gitignore`) en draai `npm run data -- data/bron`.
+
+| Bestand | Registratie | Gebruik |
 |---|---|---|
-| Sanne de Vries | 999990548 | **Hoofdscenario:** huur (Kerkstraat 12, Utrecht) → koop (Lindelaan 8, Bilthoven, postcode `3721 AB 8`), eenmanszaak op woonadres |
-| Ahmed Bakker | 999990822 | Huur → huur (bijv. `2312 DL 101 A`), geen onderneming |
-| Lotte van Dijk | 999991644 | Koop → koop (`6715 PN 17`), onderneming op ander adres (blijft) |
+| `BRP_Alle_PLen_1.csv` | RvIG / BRP | Persoonslijsten: cat. 01 (persoon, versie V0001 = actueel), 05 (partner), 08 (eerste = actuele verblijfplaats), 09 (kinderen) |
+| `BRP_Pl_data_samengevat.csv` | RvIG / BRP | Gemeentenaam per persoonslijst |
+| `BSN_nummeraanduidingen.csv` | BRP + Kadaster | `woonadres` (bron BRP) en `objectadres` (bron XML, opgevat als **Kadaster-eigendom**) per BSN |
+| `DimBezoekadressenVestigingenActueel.csv` | KVK | Bezoekadres van vestigingen met BAG-nummeraanduiding en gebruiksdoel |
+| `Ondernemingen.csv` | KVK | Onderneming, rechtsvorm, eigenaar, activiteit, actief; gekoppeld via `AdresID` |
 
-## Data (CSV)
+### Koppeling
 
-De datasets staan in `public/data/` en worden in de browser ingeladen (scheidingsteken `;`, `,` of tab wordt automatisch herkend; kolomnamen zijn niet hoofdlettergevoelig).
+Alle registraties zijn gekoppeld via de **BAG-nummeraanduiding** (16 cijfers):
 
-| Bestand | Bron | Belangrijkste kolommen |
-|---|---|---|
-| `rvig_brp_personen.csv` | RvIG / BRP | `bsn`, `voornamen`, `voorvoegsel`, `geslachtsnaam`, `geboortedatum`, `straat`, `huisnummer`, `huisnummertoevoeging`, `postcode`, `woonplaats` |
-| `kvk_handelsregister.csv` | KVK | `kvk_nummer`, `vestigingsnummer`, `handelsnaam`, `rechtsvorm`, `eigenaar_bsn`, `bezoek_*`, `post_*`, `telefoon` |
-| `kadaster_objecten.csv` | Kadaster | `kadastrale_aanduiding`, `straat`, `huisnummer`, `toevoeging`, `postcode`, `plaats`, `eigenaar_naam`, `eigenaar_bsn`, `datum_eigendom`, `koopsom`, `hypotheekhouder`, `woz_waarde` |
-| `formulier_velden.csv` | Veldencatalogus | zie hieronder |
+- **BRP → woonadres**: de actuele verblijfplaats van de persoon.
+- **Kadaster → eigendom**: `objectadres`-regels. Staat de nummeraanduiding van het (nieuwe) adres bij de BSN, dan is het een koopwoning; anders huur.
+- **KVK → vestiging op woonadres**: ondernemingen waarvan het bezoekadres dezelfde nummeraanduiding heeft als het woonadres. De assistent vraagt of de onderneming van de gebruiker is.
 
-De huidige bestanden bevatten fictieve voorbeeldgegevens. Vervang ze door de echte datasets; wijken de kolomnamen af,
-pas dan de verwijzingen aan in `src/data.ts`, `src/chatbot.ts` en de kolom `prefill` van de veldencatalogus.
+Bevindingen over de testdata:
+- Voor dezelfde nummeraanduiding wijkt de adrestekst in het KVK-bestand af van de BRP. De BRP-tekst is leidend.
+- De naam van de KVK-eigenaar komt zelden overeen met de BRP-naam. De assistent meldt dat als controlepunt.
+- Er zijn geen koopsom, aktedatum of hypotheekgegevens. Die velden vult de gebruiker zelf in.
+
+### Gegenereerde bestanden (`public/data/`)
+
+| Bestand | Inhoud |
+|---|---|
+| `rvig_brp_personen.csv` | bsn, naam, geboortedatum, nummeraanduiding, gemeente, partner, gezinsleden op adres |
+| `bag_adressen.csv` | nummeraanduiding → straat, huisnummer, huisletter, toevoeging, postcode, plaats, gemeente, gebruiksdoel |
+| `kadaster_eigendom.csv` | bsn → nummeraanduiding (objecten in eigendom) |
+| `kvk_vestigingen.csv` | actieve ondernemingen met nummeraanduiding van het bezoekadres |
+| `demo_personen.csv` | testpersonen voor de snelknoppen in de chat |
+| `formulier_velden.csv` | veldencatalogus (wel in git) |
 
 ### Veldencatalogus (`formulier_velden.csv`)
 
@@ -55,13 +72,14 @@ Elke rij is één formulierveld. Het formulier wordt samengesteld uit alle velde
 | `type` | `text`, `date`, `number`, `postcode`, `tel`, `radio` |
 | `verplicht` / `bewerkbaar` | `ja` / `nee`. Een veld zonder waarde uit een registratie is altijd invulbaar. |
 | `voorwaarde` | Situatievlag(gen): `altijd`, `verhuizing`, `nieuw_koop`, `nieuw_huur`, `oud_huur`, `oud_koop`, `onderneming_verhuist_mee`. Combineer met `&` (en), `\|` (of), `!` (niet). |
-| `prefill` | Pad naar een registratiegegeven, bijv. `persoon.bsn`, `nieuw.adres`, `kadaster_nieuw.koopsom`, `onderneming.handelsnaam`, `situatie.verhuisdatum` |
+| `prefill` | Pad naar een gegeven, bijv. `persoon.bsn`, `huidig.adres`, `nieuw.gemeente`, `kadaster_nieuw.nummeraanduiding`, `onderneming.handelsnaam`, `situatie.verhuisdatum` |
 | `opties` | Keuzes voor `radio`, gescheiden door `\|` |
 | `uitleg` | Toelichting onder het label |
 
 ## Opbouw
 
-- `src/data.ts`: CSV's laden en zoeken (adressen, BSN-elfproef)
+- `scripts/bereid-data-voor.mjs`: ruwe exports omzetten en koppelen
+- `src/data.ts`: CSV's laden en zoeken (adressen op postcode, eigendom, vestigingen)
 - `src/chatbot.ts`: regelgebaseerde assistent (stappen met controlevragen), bepaalt de situatievlaggen
 - `src/situatie.ts`: formulier samenstellen op basis van voorwaarden en vooringevulde gegevens
 - `src/components/`: Home, Proces (formulier + chat), Bevestiging, header/footer

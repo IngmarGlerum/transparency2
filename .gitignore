@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Gegenereerde data met (test)persoonsgegevens: maak aan met `npm run data -- <bronmap>`
+data/bron/
+public/data/rvig_brp_personen.csv
+public/data/bag_adressen.csv
+public/data/kadaster_eigendom.csv
+public/data/kvk_vestigingen.csv
+public/data/demo_personen.csv

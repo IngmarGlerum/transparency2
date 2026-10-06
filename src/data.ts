@@ -4,12 +4,18 @@ import Papa from 'papaparse';
 export type Row = Record<string, string>;
 
 export interface Datasets {
-  /** RvIG – Basisregistratie Personen */
-  brp: Row[];
-  /** KVK – Handelsregister */
-  kvk: Row[];
-  /** Kadaster – Basisregistratie Kadaster */
-  kadaster: Row[];
+  /** RvIG – Basisregistratie Personen, één rij per persoon met actuele verblijfplaats */
+  personen: Map<string, Row>;
+  /** Adressen per BAG-nummeraanduiding (de koppelsleutel tussen alle registraties) */
+  adressen: Map<string, Row>;
+  /** Adressen per postcode, om een ingetypt adres op te zoeken */
+  adressenPerPostcode: Map<string, Row[]>;
+  /** Kadaster – BAG-nummeraanduidingen van objecten in eigendom, per BSN */
+  eigendom: Map<string, string[]>;
+  /** KVK – actieve vestigingen per BAG-nummeraanduiding */
+  vestigingen: Map<string, Row[]>;
+  /** Testpersonen voor de demo */
+  demo: Row[];
   /** Catalogus van formuliervelden, met bron en voorwaarde */
   velden: VeldDefinitie[];
 }
@@ -30,25 +36,29 @@ export interface VeldDefinitie {
   uitleg: string;
 }
 
+/** Bestanden in public/data. Alle behalve formulier_velden.csv worden gemaakt met `npm run data -- <bronmap>`. */
 export const BESTANDEN = {
-  brp: 'rvig_brp_personen.csv',
-  kvk: 'kvk_handelsregister.csv',
-  kadaster: 'kadaster_objecten.csv',
+  personen: 'rvig_brp_personen.csv',
+  adressen: 'bag_adressen.csv',
+  eigendom: 'kadaster_eigendom.csv',
+  vestigingen: 'kvk_vestigingen.csv',
+  demo: 'demo_personen.csv',
   velden: 'formulier_velden.csv',
 } as const;
 
 async function laadCsv(bestand: string): Promise<Row[]> {
   const res = await fetch(`${import.meta.env.BASE_URL}data/${bestand}`);
-  if (!res.ok) throw new Error(`Kon ${bestand} niet laden (${res.status})`);
-  const tekst = await res.text();
-  const result = Papa.parse<Row>(tekst, {
+  const tekst = res.ok ? await res.text() : '';
+  // Vite levert index.html terug voor een ontbrekend bestand.
+  if (!res.ok || tekst.trimStart().startsWith('<'))
+    throw new Error(`${bestand} ontbreekt. Maak de data aan met: npm run data -- <map-met-bronbestanden>`);
+  return Papa.parse<Row>(tekst, {
     header: true,
     skipEmptyLines: 'greedy',
     delimitersToGuess: [';', ',', '\t', '|'],
     transformHeader: (h) => h.trim().toLowerCase().replace(/\s+/g, '_'),
     transform: (v) => v.trim(),
-  });
-  return result.data;
+  }).data;
 }
 
 const isJa = (v: string | undefined) => /^(ja|j|true|1|yes|y)$/i.test(v ?? '');
@@ -69,14 +79,32 @@ function naarVeld(r: Row): VeldDefinitie {
   };
 }
 
+function groepeer(rijen: Row[], sleutel: string): Map<string, Row[]> {
+  const m = new Map<string, Row[]>();
+  for (const r of rijen) m.set(r[sleutel], [...(m.get(r[sleutel]) ?? []), r]);
+  return m;
+}
+
 export async function laadDatasets(): Promise<Datasets> {
-  const [brp, kvk, kadaster, velden] = await Promise.all([
-    laadCsv(BESTANDEN.brp),
-    laadCsv(BESTANDEN.kvk),
-    laadCsv(BESTANDEN.kadaster),
+  const [personen, adressen, eigendom, vestigingen, demo, velden] = await Promise.all([
+    laadCsv(BESTANDEN.personen),
+    laadCsv(BESTANDEN.adressen),
+    laadCsv(BESTANDEN.eigendom),
+    laadCsv(BESTANDEN.vestigingen),
+    laadCsv(BESTANDEN.demo),
     laadCsv(BESTANDEN.velden),
   ]);
-  return { brp, kvk, kadaster, velden: velden.filter((v) => v.veld_id).map(naarVeld) };
+  const eigendomPerBsn = new Map<string, string[]>();
+  for (const e of eigendom) eigendomPerBsn.set(e.bsn, [...(eigendomPerBsn.get(e.bsn) ?? []), e.nummeraanduiding]);
+  return {
+    personen: new Map(personen.map((p) => [p.bsn, p])),
+    adressen: new Map(adressen.map((a) => [a.nummeraanduiding, a])),
+    adressenPerPostcode: groepeer(adressen.map((a) => ({ ...a, postcode: normPostcode(a.postcode) })), 'postcode'),
+    eigendom: eigendomPerBsn,
+    vestigingen: groepeer(vestigingen, 'nummeraanduiding'),
+    demo,
+    velden: velden.filter((v) => v.veld_id).map(naarVeld),
+  };
 }
 
 // ---------- Hulpfuncties voor adressen en personen ----------
@@ -91,41 +119,24 @@ export function volledigeNaam(p: Row): string {
   return [p.voornamen, p.voorvoegsel, p.geslachtsnaam].filter(Boolean).join(' ');
 }
 
-export function adresTekst(straat: string, nr: string, toev: string | undefined, postcode: string, plaats: string) {
-  return `${straat} ${nr}${toev ? ` ${toev}` : ''}, ${mooiePostcode(postcode)} ${plaats}`;
+/** Huisnummer met huisletter en toevoeging, bijvoorbeeld "12 A bis". */
+export const huisnummerVolledig = (a: Row) => [a.huisnummer + (a.huisletter ?? ''), a.toevoeging].filter(Boolean).join(' ');
+
+export const adresTekst = (a: Row | undefined) =>
+  a ? `${a.straat} ${huisnummerVolledig(a)}, ${mooiePostcode(a.postcode)} ${a.plaats}` : '';
+
+export const woonadres = (d: Datasets, p: Row) => d.adressen.get(p.nummeraanduiding);
+export const eigendomVan = (d: Datasets, bsn: string) => d.eigendom.get(bsn) ?? [];
+export const isEigenaar = (d: Datasets, bsn: string, nummeraanduiding: string) => eigendomVan(d, bsn).includes(nummeraanduiding);
+
+/** Zoekt een adres op postcode en huisnummer (met eventuele huisletter/toevoeging). Adressen in eigendom gaan voor. */
+export function zoekAdres(d: Datasets, postcode: string, nr: string, rest = '', bsn?: string): Row | undefined {
+  const kandidaten = (d.adressenPerPostcode.get(normPostcode(postcode)) ?? []).filter((a) => a.huisnummer === nr);
+  const r = rest.replace(/\s+/g, '').toLowerCase();
+  const passend = kandidaten.filter((a) => !r || `${a.huisletter ?? ''}${a.toevoeging ?? ''}`.toLowerCase() === r);
+  const lijst = passend.length ? passend : kandidaten;
+  return lijst.find((a) => bsn && isEigenaar(d, bsn, a.nummeraanduiding)) ?? lijst[0];
 }
-
-export const brpAdres = (p: Row) => adresTekst(p.straat, p.huisnummer, p.huisnummertoevoeging, p.postcode, p.woonplaats);
-export const kadasterAdres = (o: Row) => adresTekst(o.straat, o.huisnummer, o.toevoeging, o.postcode, o.plaats);
-export const kvkBezoekadres = (o: Row) =>
-  adresTekst(o.bezoek_straat, o.bezoek_huisnummer, o.bezoek_toevoeging, o.bezoek_postcode, o.bezoek_plaats);
-
-function zelfdeAdres(pc1: string, nr1: string, t1: string | undefined, pc2: string, nr2: string, t2: string | undefined) {
-  return (
-    normPostcode(pc1) === normPostcode(pc2) &&
-    nr1 === nr2 &&
-    (t1 ?? '').toLowerCase() === (t2 ?? '').toLowerCase()
-  );
-}
-
-export function zoekKadaster(data: Datasets, postcode: string, nr: string, toev?: string): Row | undefined {
-  const kandidaten = data.kadaster.filter(
-    (o) => normPostcode(o.postcode) === normPostcode(postcode) && o.huisnummer === nr,
-  );
-  if (kandidaten.length <= 1 || toev === undefined) return kandidaten[0];
-  return kandidaten.find((o) => (o.toevoeging ?? '').toLowerCase() === toev.toLowerCase()) ?? kandidaten[0];
-}
-
-export const kadasterVanPersoon = (data: Datasets, p: Row) =>
-  data.kadaster.find((o) =>
-    zelfdeAdres(o.postcode, o.huisnummer, o.toevoeging, p.postcode, p.huisnummer, p.huisnummertoevoeging),
-  );
-
-export const isZelfdeAlsWoonadres = (o: Row, p: Row) =>
-  zelfdeAdres(o.postcode, o.huisnummer, o.toevoeging, p.postcode, p.huisnummer, p.huisnummertoevoeging);
-
-export const kvkOpWoonadres = (k: Row, p: Row) =>
-  zelfdeAdres(k.bezoek_postcode, k.bezoek_huisnummer, k.bezoek_toevoeging, p.postcode, p.huisnummer, p.huisnummertoevoeging);
 
 /** Elfproef voor een burgerservicenummer. */
 export function geldigBsn(bsn: string): boolean {
