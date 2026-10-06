@@ -309,7 +309,35 @@ body {
   }
 }
 
+/* Veld dat de assistent net heeft toegevoegd of ingevuld */
+[data-veld],
+.mo-sectie {
+  scroll-margin-top: 1.5rem;
+}
+
+.mo-sectie [data-veld].mo-veld--gewijzigd {
+  border-radius: 4px;
+  animation: mo-markeer 2.5s ease-out;
+}
+
+@keyframes mo-markeer {
+  0%,
+  40% {
+    background-color: var(--mo-blauw-licht);
+    box-shadow: 0 0 0 6px var(--mo-blauw-licht);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .mo-sectie [data-veld].mo-veld--gewijzigd {
+    animation: none;
+    outline: 2px solid var(--mo-blauw);
+    outline-offset: 4px;
+  }
   .mo-sectie,
   .mo-sectie .utrecht-form-field,
   .mo-sectie .utrecht-form-fieldset {
