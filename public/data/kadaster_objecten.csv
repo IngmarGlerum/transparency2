@@ -1,0 +1,7 @@
+kadastrale_aanduiding;straat;huisnummer;toevoeging;postcode;plaats;gebruiksdoel;oppervlakte_m2;bouwjaar;eigenaar_type;eigenaar_naam;eigenaar_bsn;datum_eigendom;koopsom;hypotheekhouder;woz_waarde
+UTR00-K-1234;Kerkstraat;12;;3511LK;Utrecht;woonfunctie;68;1912;rechtspersoon;Stichting Stadswonen (demo);;1998-01-01;;;312000
+BLT01-L-5678;Lindelaan;8;;3721AB;Bilthoven;woonfunctie;132;1965;natuurlijk persoon;S.M. de Vries;999990548;2026-09-15;485000;Demo Hypotheekbank N.V.;470000
+LDN02-V-2211;Vondellaan;45;bis;2316XB;Leiden;woonfunctie;55;1958;rechtspersoon;Woonstichting Sleutelstad (demo);;2001-05-01;;;254000
+LDN02-H-3390;Haarlemmerstraat;101;A;2312DL;Leiden;woonfunctie;61;1890;rechtspersoon;Vastgoed Lakenstad B.V. (demo);;2010-10-01;;;298000
+WGN00-M-0003;Molenweg;3;;6702AB;Wageningen;woonfunctie;110;1972;natuurlijk persoon;L. van Dijk;999991644;2015-08-28;265000;Demo Hypotheekbank N.V.;395000
+EDE01-B-7744;Bosrand;17;;6715PN;Ede;woonfunctie;148;2004;natuurlijk persoon;L. van Dijk;999991644;2026-10-01;515000;Demo Hypotheekbank N.V.;505000

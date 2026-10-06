@@ -1,0 +1,33 @@
+veld_id;bron;sectie;label;type;verplicht;bewerkbaar;voorwaarde;prefill;opties;uitleg
+brp_bsn;RvIG;Persoonsgegevens;Burgerservicenummer;text;ja;nee;altijd;persoon.bsn;;Uit de Basisregistratie Personen (BRP).
+brp_naam;RvIG;Persoonsgegevens;Naam;text;ja;nee;altijd;persoon.volledige_naam;;Uit de BRP.
+brp_geboortedatum;RvIG;Persoonsgegevens;Geboortedatum;date;ja;nee;altijd;persoon.geboortedatum;;Uit de BRP.
+brp_oud_adres;RvIG;Verhuizing doorgeven (BRP);Huidig woonadres;text;ja;nee;verhuizing;persoon.adres;;Zoals nu geregistreerd in de BRP.
+brp_nieuw_postcode;RvIG;Verhuizing doorgeven (BRP);Postcode nieuw adres;postcode;ja;nee;verhuizing;nieuw.postcode;;
+brp_nieuw_huisnummer;RvIG;Verhuizing doorgeven (BRP);Huisnummer nieuw adres;text;ja;nee;verhuizing;nieuw.huisnummer_volledig;;
+brp_nieuw_straat;RvIG;Verhuizing doorgeven (BRP);Straat;text;ja;nee;verhuizing;nieuw.straat;;Automatisch aangevuld uit de Basisregistratie Adressen en Gebouwen.
+brp_nieuw_plaats;RvIG;Verhuizing doorgeven (BRP);Woonplaats;text;ja;nee;verhuizing;nieuw.plaats;;
+brp_verhuisdatum;RvIG;Verhuizing doorgeven (BRP);Verhuisdatum;date;ja;ja;verhuizing;situatie.verhuisdatum;;Je kunt een verhuizing tot 4 weken vooraf en uiterlijk 5 dagen na de verhuisdatum doorgeven.
+brp_meeverhuizers;RvIG;Verhuizing doorgeven (BRP);Verhuizen er andere personen mee?;radio;ja;ja;verhuizing;situatie.meeverhuizers;Nee|Ja, mijn partner en/of kinderen;
+kvk_nummer;KVK;Vestigingsadres wijzigen (Handelsregister);KVK-nummer;text;ja;nee;onderneming_verhuist_mee;onderneming.kvk_nummer;;Uit het Handelsregister.
+kvk_handelsnaam;KVK;Vestigingsadres wijzigen (Handelsregister);Handelsnaam;text;ja;nee;onderneming_verhuist_mee;onderneming.handelsnaam;;
+kvk_rechtsvorm;KVK;Vestigingsadres wijzigen (Handelsregister);Rechtsvorm;text;ja;nee;onderneming_verhuist_mee;onderneming.rechtsvorm;;
+kvk_vestigingsnummer;KVK;Vestigingsadres wijzigen (Handelsregister);Vestigingsnummer;text;ja;nee;onderneming_verhuist_mee;onderneming.vestigingsnummer;;
+kvk_oud_bezoekadres;KVK;Vestigingsadres wijzigen (Handelsregister);Huidig bezoekadres;text;ja;nee;onderneming_verhuist_mee;onderneming.bezoekadres;;Dit is gelijk aan je huidige woonadres.
+kvk_nieuw_bezoekadres;KVK;Vestigingsadres wijzigen (Handelsregister);Nieuw bezoekadres;text;ja;nee;onderneming_verhuist_mee;nieuw.adres;;Wordt automatisch gelijk aan je nieuwe woonadres.
+kvk_postadres_gelijk;KVK;Vestigingsadres wijzigen (Handelsregister);Is het nieuwe adres ook het postadres?;radio;ja;ja;onderneming_verhuist_mee;situatie.postadres_gelijk;Ja|Nee, ik gebruik een ander postadres;
+kvk_ingangsdatum;KVK;Vestigingsadres wijzigen (Handelsregister);Ingangsdatum wijziging;date;ja;ja;onderneming_verhuist_mee;situatie.verhuisdatum;;Meestal gelijk aan je verhuisdatum.
+kvk_nieuw_telefoon;KVK;Vestigingsadres wijzigen (Handelsregister);Telefoonnummer onderneming;tel;nee;ja;onderneming_verhuist_mee;onderneming.telefoon;;Controleer of dit nog klopt.
+kvk_activiteit_thuis;KVK;Vestigingsadres wijzigen (Handelsregister);Blijven de bedrijfsactiviteiten hetzelfde?;radio;ja;ja;onderneming_verhuist_mee;;Ja|Nee, er verandert iets;Bijvoorbeeld als je op het nieuwe adres klanten gaat ontvangen.
+kad_aanduiding;Kadaster;Eigendom nieuwe woning (koop);Kadastrale aanduiding;text;ja;nee;nieuw_koop;kadaster_nieuw.kadastrale_aanduiding;;Uit de Basisregistratie Kadaster.
+kad_eigenaar;Kadaster;Eigendom nieuwe woning (koop);Geregistreerde eigenaar;text;ja;nee;nieuw_koop;kadaster_nieuw.eigenaar_naam;;
+kad_datum_eigendom;Kadaster;Eigendom nieuwe woning (koop);Datum eigendomsoverdracht;date;ja;nee;nieuw_koop;kadaster_nieuw.datum_eigendom;;Datum van inschrijving van de leveringsakte.
+kad_koopsom;Kadaster;Eigendom nieuwe woning (koop);Koopsom (€);number;ja;nee;nieuw_koop;kadaster_nieuw.koopsom;;
+kad_hypotheek;Kadaster;Eigendom nieuwe woning (koop);Hypotheekhouder;text;nee;nee;nieuw_koop;kadaster_nieuw.hypotheekhouder;;
+kad_woz;Kadaster;Eigendom nieuwe woning (koop);WOZ-waarde;number;nee;nee;nieuw_koop;kadaster_nieuw.woz_waarde;;Ter informatie. Je gemeente stuurt de WOZ-beschikking.
+kad_hoofdverblijf;Kadaster;Eigendom nieuwe woning (koop);Wordt dit je hoofdverblijf (eigen woning)?;radio;ja;ja;nieuw_koop;;Ja|Nee;Belangrijk voor de eigenwoningregeling en hypotheekrenteaftrek.
+kad_oud_eigenaar;Kadaster;Beëindiging huur oude woning;Eigenaar / verhuurder huidige woning;text;nee;nee;oud_huur;kadaster_oud.eigenaar_naam;;Volgens het Kadaster ben je geen eigenaar van je huidige woning.
+kad_einddatum_huur;Kadaster;Beëindiging huur oude woning;Einddatum huurovereenkomst;date;ja;ja;oud_huur;situatie.verhuisdatum;;Zeg je huur zelf op bij je verhuurder. Let op je opzegtermijn.
+kad_huurtoeslag;Kadaster;Beëindiging huur oude woning;Ontvang je huurtoeslag?;radio;ja;ja;oud_huur;;Nee|Ja;Huurtoeslag stopt als je een koopwoning betrekt. Wij geven dit door aan Dienst Toeslagen.
+kad_nieuw_verhuurder;Kadaster;Nieuwe huurwoning;Eigenaar / verhuurder nieuwe woning;text;nee;nee;nieuw_huur;kadaster_nieuw.eigenaar_naam;;
+kad_oud_verkoop;Kadaster;Huidige koopwoning;Wat gebeurt er met je huidige woning?;radio;ja;ja;oud_koop;;Verkocht|Te koop|Ik houd de woning aan;

@@ -1,0 +1,472 @@
+/* Aanvullende layout bovenop de NL Design System / Rijkshuisstijl Community componenten. */
+
+:root {
+  --mo-blauw: var(--rhc-color-lintblauw-500, #01689b);
+  --mo-blauw-donker: var(--rhc-color-lintblauw-700, #154273);
+  --mo-blauw-licht: var(--rhc-color-lintblauw-50, #e5f0f9);
+  --mo-grijs-licht: var(--rhc-color-cool-grey-100, #f3f3f3);
+  --mo-rand: var(--rhc-color-border-subtle, #cad0d6);
+  --mo-tekst: var(--rhc-color-foreground-default, #1d1d1d);
+  --mo-tekst-subtiel: var(--rhc-color-foreground-subtle, #545d68);
+  --mo-wit: #fff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--mo-wit);
+  color: var(--mo-tekst);
+  font-family: 'Fira Sans', 'RijksoverheidSansWebText', Verdana, Arial, sans-serif;
+}
+
+.mo-pagina {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.mo-main {
+  flex: 1;
+  padding-block-end: 3rem;
+}
+
+.mo-container {
+  margin-inline: auto;
+  max-width: 60rem;
+  padding-inline: 1rem;
+}
+
+.mo-container--breed {
+  max-width: 82rem;
+}
+
+/* ---------- Header ---------- */
+.mo-header .nl-skip-link {
+  position: absolute;
+  left: -9999px;
+}
+.mo-header .nl-skip-link:focus {
+  left: 1rem;
+  top: 1rem;
+  z-index: 10;
+}
+
+.mo-logo-wrap {
+  display: flex;
+  justify-content: center;
+  background: var(--mo-wit);
+}
+
+.mo-logo {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  color: var(--mo-tekst);
+  text-decoration: none;
+}
+
+.mo-logo__lint {
+  display: block;
+  width: 2.75rem;
+  height: 4.75rem;
+  background: var(--mo-blauw-donker);
+}
+
+.mo-logo__tekst {
+  display: flex;
+  flex-direction: column;
+  padding-block-start: 1.6rem;
+}
+
+.mo-logo__titel {
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.mo-logo__sub {
+  font-size: 0.95rem;
+  font-style: italic;
+  color: var(--mo-tekst-subtiel);
+}
+
+.mo-nav {
+  background: var(--mo-blauw-donker);
+}
+
+.mo-nav__lijst {
+  display: flex;
+  gap: 0;
+  list-style: none;
+  margin: 0 auto;
+  max-width: 82rem;
+  padding: 0 0.25rem;
+}
+
+.mo-nav__link {
+  display: block;
+  padding: 0.85rem 1rem;
+  color: var(--mo-wit);
+  text-decoration: none;
+}
+
+.mo-nav__link:hover,
+.mo-nav__link:focus-visible {
+  background: var(--mo-blauw);
+  text-decoration: underline;
+}
+
+/* ---------- Home ---------- */
+.mo-hero {
+  background: var(--mo-blauw-licht);
+  padding-block: 3rem;
+  margin-block-end: 2rem;
+}
+
+.mo-hero__lead {
+  max-width: 40rem;
+  font-size: 1.2rem;
+}
+
+.mo-start {
+  margin-block-start: 1rem;
+  font-size: 1.15rem;
+}
+
+.mo-prototype {
+  margin-block-end: 2rem;
+}
+
+/* ---------- Processcherm ---------- */
+.mo-kruimel {
+  margin-block: 1rem;
+}
+
+.mo-kruimel .utrecht-breadcrumb-nav__list {
+  display: flex;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mo-kruimel .utrecht-breadcrumb-nav__item + .utrecht-breadcrumb-nav__item::before {
+  content: '›';
+  margin-inline-end: 0.5rem;
+}
+
+.mo-proces {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 2rem;
+  align-items: start;
+}
+
+.mo-proces__chat {
+  position: sticky;
+  top: 1rem;
+}
+
+@media (max-width: 900px) {
+  .mo-proces {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .mo-proces__chat {
+    position: static;
+    order: -1;
+  }
+  .mo-chat {
+    height: 30rem;
+  }
+}
+
+/* Formulier */
+.mo-formulier--leeg {
+  border: 2px dashed var(--mo-rand);
+  border-radius: 4px;
+  padding: 1.5rem;
+  color: var(--mo-tekst-subtiel);
+}
+
+.mo-sectie {
+  border: 1px solid var(--mo-rand);
+  border-inline-start: 6px solid var(--mo-blauw);
+  border-radius: 4px;
+  padding: 1rem 1.25rem 0.5rem;
+  margin-block: 1.25rem;
+  animation: mo-in 0.4s ease-out;
+}
+
+.mo-sectie--kvk {
+  border-inline-start-color: #42145f; /* paars */
+}
+.mo-sectie--kadaster {
+  border-inline-start-color: #39870c; /* groen */
+}
+
+.mo-sectie__kop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  margin-block-end: 0.5rem;
+}
+
+.mo-sectie__kop .nl-heading {
+  margin: 0;
+}
+
+.mo-bron {
+  display: inline-block;
+  font-size: 0.85rem;
+  font-weight: 400;
+  background: var(--mo-grijs-licht);
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  color: var(--mo-tekst-subtiel);
+}
+
+.mo-bron__register {
+  font-style: italic;
+}
+
+.mo-sectie .utrecht-form-field,
+.mo-sectie .utrecht-form-fieldset {
+  margin-block-end: 1rem;
+  animation: mo-in 0.4s ease-out;
+}
+
+.mo-sectie .utrecht-textbox {
+  width: 100%;
+  max-width: 28rem;
+}
+
+.mo-sectie .utrecht-textbox--postal-code-nl-size {
+  max-width: 9rem;
+}
+
+.mo-alleen-lezen {
+  background: var(--mo-grijs-licht) !important;
+  border-color: var(--mo-rand) !important;
+}
+
+.mo-sectie .utrecht-form-field--radio {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
+  align-items: center;
+  margin-block: 0.4rem;
+}
+
+.mo-sectie .utrecht-form-field--radio .utrecht-form-field__input {
+  order: 0;
+}
+
+.mo-sectie .utrecht-form-field--radio .utrecht-form-field__label {
+  order: 1;
+  margin: 0;
+}
+
+.mo-sectie fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.mo-sectie legend {
+  font-weight: 700;
+  padding: 0;
+}
+
+.mo-optioneel {
+  font-weight: 400;
+  color: var(--mo-tekst-subtiel);
+}
+
+.mo-acties {
+  margin-block-start: 1.5rem;
+}
+
+.mo-wacht {
+  color: var(--mo-tekst-subtiel);
+  font-style: italic;
+}
+
+@keyframes mo-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+    background-color: var(--mo-blauw-licht);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mo-sectie,
+  .mo-sectie .utrecht-form-field,
+  .mo-sectie .utrecht-form-fieldset {
+    animation: none;
+  }
+}
+
+/* Chat */
+.mo-chat {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--mo-rand);
+  border-radius: 4px;
+  background: var(--mo-wit);
+  height: min(44rem, calc(100vh - 2rem));
+}
+
+.mo-chat__kop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: var(--mo-blauw-donker);
+  color: var(--mo-wit);
+  padding: 0.5rem 0.75rem 0.5rem 1rem;
+  border-radius: 3px 3px 0 0;
+}
+
+.mo-chat__kop .nl-heading {
+  color: var(--mo-wit);
+  margin: 0;
+}
+
+.mo-chat__opnieuw.utrecht-button {
+  color: var(--mo-wit);
+  min-block-size: auto;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+.mo-chat__log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: var(--mo-grijs-licht);
+}
+
+.mo-bericht {
+  max-width: 88%;
+  padding: 0.6rem 0.85rem;
+  border-radius: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.mo-bericht--bot {
+  align-self: flex-start;
+  background: var(--mo-wit);
+  border: 1px solid var(--mo-rand);
+  border-end-start-radius: 2px;
+}
+
+.mo-bericht--gebruiker {
+  align-self: flex-end;
+  background: var(--mo-blauw);
+  color: var(--mo-wit);
+  border-end-end-radius: 2px;
+}
+
+.mo-bericht--typen {
+  display: flex;
+  gap: 4px;
+}
+
+.mo-bericht--typen span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--mo-tekst-subtiel);
+  animation: mo-stip 1s infinite ease-in-out;
+}
+.mo-bericht--typen span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.mo-bericht--typen span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes mo-stip {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+.mo-chat__suggesties {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.6rem 1rem;
+  border-block-start: 1px solid var(--mo-rand);
+}
+
+.mo-suggestie.utrecht-button {
+  min-block-size: auto;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.9rem;
+  border-radius: 999px;
+}
+
+.mo-chat__invoer {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-block-start: 1px solid var(--mo-rand);
+}
+
+.mo-chat__invoer .utrecht-textbox {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Bevestiging */
+.mo-overzicht {
+  margin-block-end: 1.5rem;
+}
+
+.mo-overzicht .mo-bron {
+  vertical-align: middle;
+  margin-inline-start: 0.5rem;
+}
+
+/* Footer */
+.mo-footer {
+  background: var(--mo-blauw-donker);
+  color: var(--mo-wit);
+  padding-block: 2rem;
+}
+
+.mo-footer__tagline {
+  font-size: 1.15rem;
+  font-style: italic;
+  margin-block-start: 0;
+}
+
+.mo-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 2rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
