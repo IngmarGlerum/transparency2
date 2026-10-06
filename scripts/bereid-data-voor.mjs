@@ -23,6 +23,11 @@ if (!bronMap) {
   process.exit(1);
 }
 
+if (!fs.existsSync(bronMap) || !fs.statSync(bronMap).isDirectory()) {
+  console.error(`De map "${bronMap}" bestaat niet. Maak hem aan en zet de vijf bronbestanden (CSV) erin.`);
+  process.exit(1);
+}
+
 function vind(naam) {
   const f = fs.readdirSync(bronMap).find((x) => x === naam || x.endsWith(`-${naam}`));
   if (!f) throw new Error(`Bronbestand ${naam} niet gevonden in ${bronMap}`);
