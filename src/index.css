@@ -289,7 +289,25 @@ body {
 }
 
 .mo-acties {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
   margin-block-start: 1.5rem;
+}
+
+/* Op smalle schermen onder elkaar, over de volle breedte */
+@media (max-width: 480px) {
+  .mo-acties {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .mo-acties > * {
+    inline-size: 100%;
+    max-inline-size: none;
+    justify-content: center;
+    text-align: center;
+  }
 }
 
 .mo-wacht {
