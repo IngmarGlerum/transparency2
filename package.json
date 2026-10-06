@@ -15,7 +15,9 @@
     "@rijkshuisstijl-community/design-tokens": "^18.0.1",
     "@rijkshuisstijl-community/font": "^1.1.6",
     "@types/papaparse": "^5.5.2",
+    "@types/pdfmake": "^0.3.3",
     "papaparse": "^5.7.0",
+    "pdfmake": "^0.3.11",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

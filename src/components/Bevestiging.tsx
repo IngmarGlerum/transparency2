@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { datumNl, euro, type VeldDefinitie } from '../data';
+import { datumNl, euro, mooiePostcode, type VeldDefinitie } from '../data';
+import { downloadRapportPdf } from '../pdf';
 import { BRON_INFO } from '../situatie';
 import { Container } from './Layout';
 import type { Inzending } from './Proces';
@@ -10,11 +11,39 @@ const VERVOLG: Record<string, string> = {
   Kadaster: 'De gegevens over je woning zijn gecontroleerd met de Basisregistratie Kadaster. Woon je eerst in een huurwoning, dan geven we het einde van de huur door aan Dienst Toeslagen.',
 };
 
-const toon = (v: VeldDefinitie, w: string) => (v.type === 'date' ? datumNl(w) : v.type === 'number' ? euro(w) : w) || '—';
+const toon = (v: VeldDefinitie, w: string) =>
+  (v.type === 'date' ? datumNl(w) : v.type === 'number' ? euro(w) : v.type === 'postcode' ? mooiePostcode(w) : w) || '—';
 
 export function Bevestiging({ inzending }: { inzending: Inzending }) {
   const bronnen = [...new Set(inzending.secties.map((s) => s.bron))];
   const [kenmerk] = useState(() => `MO-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`);
+  const [datum] = useState(() => new Date());
+  const [pdfStatus, setPdfStatus] = useState<'klaar' | 'bezig' | 'fout'>('klaar');
+  const organisaties = bronnen.map((b) => BRON_INFO[b]?.naam ?? b).join(', ');
+
+  const downloadPdf = async () => {
+    setPdfStatus('bezig');
+    try {
+      await downloadRapportPdf(
+        {
+          titel: 'Je verhuizing is doorgegeven',
+          kenmerk,
+          datum: datum.toLocaleString('nl-NL', { dateStyle: 'long', timeStyle: 'short' }),
+          intro: `We hebben je gegevens ontvangen en doorgestuurd naar ${organisaties}.`,
+          vervolg: bronnen.map((b) => ({ organisatie: BRON_INFO[b]?.naam ?? b, tekst: VERVOLG[b] ?? 'Je wijziging wordt verwerkt.' })),
+          secties: inzending.secties.map((s) => ({
+            titel: s.titel,
+            bron: BRON_INFO[s.bron] ? `${BRON_INFO[s.bron].naam} · ${BRON_INFO[s.bron].register}` : s.bron,
+            rijen: s.velden.map((v) => [v.label, toon(v, inzending.waarden[v.id] ?? '')] as [string, string]),
+          })),
+        },
+        `verhuizing-${kenmerk}.pdf`,
+      );
+      setPdfStatus('klaar');
+    } catch {
+      setPdfStatus('fout');
+    }
+  };
 
   return (
     <Container>
@@ -23,7 +52,7 @@ export function Bevestiging({ inzending }: { inzending: Inzending }) {
         <div className="utrecht-alert__content">
           <div className="utrecht-alert__message">
             <p className="utrecht-paragraph">
-              Bedankt. We hebben je gegevens ontvangen en doorgestuurd naar {bronnen.map((b) => BRON_INFO[b]?.naam ?? b).join(', ')}.
+              Bedankt. We hebben je gegevens ontvangen en doorgestuurd naar {organisaties}.
               Je kenmerk is <strong>{kenmerk}</strong>. (Prototype: er is niets echt verstuurd.)
             </p>
           </div>
@@ -56,11 +85,29 @@ export function Bevestiging({ inzending }: { inzending: Inzending }) {
         </section>
       ))}
 
-      <p className="utrecht-paragraph">
+      {pdfStatus === 'fout' && (
+        <div className="utrecht-alert utrecht-alert--error" role="alert">
+          <div className="utrecht-alert__content">
+            <div className="utrecht-alert__message">
+              <p className="utrecht-paragraph">De PDF kon niet worden gemaakt. Probeer het opnieuw.</p>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="utrecht-button-group mo-acties">
+        <button
+          type="button"
+          className="utrecht-button utrecht-button--primary-action"
+          onClick={downloadPdf}
+          disabled={pdfStatus === 'bezig'}
+          aria-busy={pdfStatus === 'bezig'}
+        >
+          {pdfStatus === 'bezig' ? 'PDF wordt gemaakt…' : 'Download als PDF'}
+        </button>
         <a className="utrecht-button-link utrecht-button-link--html-a utrecht-button-link--secondary-action" href="#/">
           Terug naar Mijn Overheid
         </a>
-      </p>
+      </div>
     </Container>
   );
 }
